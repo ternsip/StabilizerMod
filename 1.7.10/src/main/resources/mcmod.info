@@ -1,0 +1,16 @@
+[
+{
+  "modid": "oreprizemod",
+  "name": "OrePrizeMod",
+  "description": "Ore deposit generator",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "",
+  "updateUrl": "",
+  "authorList": ["Ternsip"],
+  "credits": "Ternsip",
+  "logoFile": "",
+  "screenshots": [],
+  "dependencies": []
+}
+]
