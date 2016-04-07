@@ -11,14 +11,14 @@ import net.minecraft.world.World;
  */
 public class Container {
 
+    private World world;
     private int x, y, z;
-    private TileEntity tileEntity;
 
-    public Container(int x, int y, int z, TileEntity tileEntity) {
+    public Container(World world, int x, int y, int z) {
+        this.world = world;
         this.x = x;
         this.y = y;
         this.z = z;
-        this.tileEntity = tileEntity;
     }
 
     public int getX() {
@@ -34,7 +34,7 @@ public class Container {
     }
 
     public TileEntity getTileEntity() {
-        return tileEntity;
+        return world.getTileEntity(x, y, z);
     }
 
     public static boolean chargeableIC2(TileEntity tile) {
@@ -95,7 +95,8 @@ public class Container {
         tile.readFromNBT(tag);
     }
 
-    public void balance(World world) {
+    public void balance() {
+        TileEntity tileEntity = getTileEntity();
         if (chargeableIC2(tileEntity)) {
             TileEntity[] tiles = {
                     world.getTileEntity(x, y - 1, z),
@@ -109,7 +110,7 @@ public class Container {
             for (int i = 0; i < 6; ++i) {
                 if (chargeableBC(tiles[i])) {
                     int energy = getBC(tiles[i]);
-                    for (int voltage = 9; voltage >= 1; --voltage) {
+                    for (int voltage = 9; voltage >= 0; --voltage) {
                         int power = 1 << voltage;
                         if (ic2Energy - energy > power + 0.5) {
                             ic2Energy -= power;
@@ -125,6 +126,14 @@ public class Container {
             }
             setIC2(tileEntity, ic2Energy);
         }
+    }
+
+    public int getChunkX() {
+        return world.getChunkFromBlockCoords(x, z).xPosition;
+    }
+
+    public int getChunkZ() {
+        return world.getChunkFromBlockCoords(x, z).zPosition;
     }
 
 }
