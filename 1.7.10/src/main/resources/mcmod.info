@@ -1,8 +1,8 @@
 [
 {
-  "modid": "oreprizemod",
-  "name": "OrePrizeMod",
-  "description": "Ore deposit generator",
+  "modid": "stabilizermod",
+  "name": "stabilizermod",
+  "description": "IC2 BuildCraft energy converter",
   "version": "${version}",
   "mcversion": "${mcversion}",
   "url": "",
