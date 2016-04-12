@@ -1,8 +1,6 @@
 package com.ternsip.stabilizermod;
 
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagDouble;
-import net.minecraft.nbt.NBTTagInt;
+import net.minecraft.nbt.*;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 
@@ -37,35 +35,43 @@ public class Container {
         return world.getTileEntity(x, y, z);
     }
 
-    public static boolean chargeableIC2(TileEntity tile) {
-        if (tile != null) {
-            NBTTagCompound tag = new NBTTagCompound();
-            tile.writeToNBT(tag);
-            if (tag.hasKey("energy") && (tag.getTag("energy") instanceof NBTTagDouble)) {
-                return true;
-            }
+    private static boolean isIC2Experimental(NBTTagCompound tag) {
+        return tag.getTag("energy") instanceof NBTTagDouble;
+    }
+
+    private static boolean isIC2Classic(NBTTagCompound tag) {
+        return tag.hasKey("facing") && tag.getTag("energy") instanceof NBTTagInt;
+    }
+
+    private static boolean isBC(NBTTagCompound tag) {
+        if (tag.hasKey("Energy")) {
+            return tag.getTag("Energy") instanceof NBTTagInt;
         }
-        return false;
+        return !tag.hasKey("facing") && tag.hasKey("energy") && (tag.getTag("energy") instanceof NBTTagInt);
+    }
+
+    public static boolean chargeableIC2(TileEntity tile) {
+        if (tile == null) {
+            return false;
+        }
+        NBTTagCompound tag = new NBTTagCompound();
+        tile.writeToNBT(tag);
+        return isIC2Experimental(tag) || isIC2Classic(tag);
     }
 
     public static boolean chargeableBC(TileEntity tile) {
-        if (tile != null) {
-            NBTTagCompound tag = new NBTTagCompound();
-            tile.writeToNBT(tag);
-            if (tag.hasKey("Energy") && (tag.getTag("Energy") instanceof NBTTagInt)) {
-                return true;
-            }
-            if (tag.hasKey("energy") && (tag.getTag("energy") instanceof NBTTagInt)) {
-                return true;
-            }
+        if (tile == null) {
+            return false;
         }
-        return false;
+        NBTTagCompound tag = new NBTTagCompound();
+        tile.writeToNBT(tag);
+        return isBC(tag);
     }
 
     public static double getIC2(TileEntity tile) {
         NBTTagCompound tag = new NBTTagCompound();
         tile.writeToNBT(tag);
-        return tag.getDouble("energy");
+        return isIC2Experimental(tag) ? tag.getDouble("energy") : tag.getInteger("energy");
     }
 
     public static int getBC(TileEntity tile) {
@@ -80,7 +86,10 @@ public class Container {
     public static void setIC2(TileEntity tile, double energy) {
         NBTTagCompound tag = new NBTTagCompound();
         tile.writeToNBT(tag);
-        tag.setDouble("energy", energy);
+        if (isIC2Experimental(tag))
+            tag.setDouble("energy", energy);
+        else
+            tag.setInteger("energy", (int) (energy + 0.25));
         tile.readFromNBT(tag);
     }
 
