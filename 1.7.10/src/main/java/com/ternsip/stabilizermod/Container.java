@@ -4,6 +4,8 @@ import net.minecraft.nbt.*;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 
+import java.lang.reflect.Field;
+
 /**
  * Created by TrnMain on 01.04.2016.
  */
@@ -11,130 +13,50 @@ public class Container {
 
     private World world;
     private int x, y, z;
+    private Chargeable chargeable;
 
     public Container(World world, int x, int y, int z) {
         this.world = world;
         this.x = x;
         this.y = y;
         this.z = z;
-    }
-
-    public int getX() {
-        return x;
-    }
-
-    public int getY() {
-        return y;
-    }
-
-    public int getZ() {
-        return z;
-    }
-
-    public TileEntity getTileEntity() {
-        return world.getTileEntity(x, y, z);
-    }
-
-    private static boolean isIC2Experimental(NBTTagCompound tag) {
-        return tag.getTag("energy") instanceof NBTTagDouble;
-    }
-
-    private static boolean isIC2Classic(NBTTagCompound tag) {
-        return tag.hasKey("facing") && tag.getTag("energy") instanceof NBTTagInt;
-    }
-
-    private static boolean isBC(NBTTagCompound tag) {
-        if (tag.hasKey("Energy")) {
-            return tag.getTag("Energy") instanceof NBTTagInt;
-        }
-        return !tag.hasKey("facing") && tag.hasKey("energy") && (tag.getTag("energy") instanceof NBTTagInt);
-    }
-
-    public static boolean chargeableIC2(TileEntity tile) {
-        if (tile == null) {
-            return false;
-        }
-        NBTTagCompound tag = new NBTTagCompound();
-        tile.writeToNBT(tag);
-        return isIC2Experimental(tag) || isIC2Classic(tag);
-    }
-
-    public static boolean chargeableBC(TileEntity tile) {
-        if (tile == null) {
-            return false;
-        }
-        NBTTagCompound tag = new NBTTagCompound();
-        tile.writeToNBT(tag);
-        return isBC(tag);
-    }
-
-    public static double getIC2(TileEntity tile) {
-        NBTTagCompound tag = new NBTTagCompound();
-        tile.writeToNBT(tag);
-        return isIC2Experimental(tag) ? tag.getDouble("energy") : tag.getInteger("energy");
-    }
-
-    public static int getBC(TileEntity tile) {
-        NBTTagCompound tag = new NBTTagCompound();
-        tile.writeToNBT(tag);
-        if (tag.hasKey("Energy")) {
-            return tag.getInteger("Energy");
-        }
-        return tag.getInteger("energy");
-    }
-
-    public static void setIC2(TileEntity tile, double energy) {
-        NBTTagCompound tag = new NBTTagCompound();
-        tile.writeToNBT(tag);
-        if (isIC2Experimental(tag))
-            tag.setDouble("energy", energy);
-        else
-            tag.setInteger("energy", (int) (energy + 0.25));
-        tile.readFromNBT(tag);
-    }
-
-    public static void setBC(TileEntity tile, int energy) {
-        NBTTagCompound tag = new NBTTagCompound();
-        tile.writeToNBT(tag);
-        if (tag.hasKey("Energy")) {
-            tag.setInteger("Energy", energy);
-        } else {
-            tag.setInteger("energy", energy);
-        }
-        tile.readFromNBT(tag);
+        this.chargeable = new Chargeable(world, x, y, z);
     }
 
     public void balance() {
-        TileEntity tileEntity = getTileEntity();
-        if (chargeableIC2(tileEntity)) {
-            TileEntity[] tiles = {
-                    world.getTileEntity(x, y - 1, z),
-                    world.getTileEntity(x, y + 1, z),
-                    world.getTileEntity(x - 1, y, z),
-                    world.getTileEntity(x + 1, y, z),
-                    world.getTileEntity(x, y, z - 1),
-                    world.getTileEntity(x, y, z + 1)
-            };
-            double ic2Energy = getIC2(tileEntity);
-            for (int i = 0; i < 6; ++i) {
-                if (chargeableBC(tiles[i])) {
-                    int energy = getBC(tiles[i]);
-                    for (int voltage = 9; voltage >= 0; --voltage) {
-                        int power = 1 << voltage;
-                        if (ic2Energy - energy > power + 0.5) {
-                            ic2Energy -= power;
-                            energy += power;
-                        }
-                        if (energy - ic2Energy > power + 0.5) {
-                            ic2Energy += power;
-                            energy -= power;
-                        }
-                    }
-                    setBC(tiles[i], energy);
+        if (!chargeable.chargeableIC2()) {
+            return;
+        }
+        Chargeable[] charges = {
+                new Chargeable(world, x, y - 1, z),
+                new Chargeable(world, x, y + 1, z),
+                new Chargeable(world, x - 1, y, z),
+                new Chargeable(world, x + 1, y, z),
+                new Chargeable(world, x, y, z - 1),
+                new Chargeable(world, x, y, z + 1)
+        };
+        double midEnergy = chargeable.getEnergy();
+        for (int i = 0; i < 6; ++i) {
+            if (!charges[i].chargeable() || charges[i].chargeableIC2()) {
+                continue;
+            }
+            double energy = charges[i].getEnergy();
+            for (int voltage = 12; voltage >= 0; --voltage) {
+                int power = 1 << voltage;
+                if ((int)midEnergy - (int)energy > 2 * power) {
+                    midEnergy -= power;
+                    energy += power;
+                    break;
+                }
+                if ((int)energy - (int)midEnergy > 2 * power) {
+                    midEnergy += power;
+                    energy -= power;
+                    break;
                 }
             }
-            setIC2(tileEntity, ic2Energy);
+            charges[i].setEnergy(energy);
         }
+        chargeable.setEnergy(midEnergy);
     }
 
     public int getChunkX() {
@@ -145,4 +67,7 @@ public class Container {
         return world.getChunkFromBlockCoords(x, z).zPosition;
     }
 
+    public Chargeable getChargeable() {
+        return chargeable;
+    }
 }

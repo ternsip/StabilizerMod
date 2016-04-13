@@ -30,7 +30,7 @@ public class Registrant {
         for (HashSet<Container> chunkContainers : containers.values()) {
             for (Iterator<Container> iterator = chunkContainers.iterator(); iterator.hasNext();) {
                 Container container = iterator.next();
-                if (Container.chargeableIC2(container.getTileEntity())) {
+                if (container.getChargeable().chargeableIC2()) {
                     container.balance();
                 } else {
                     iterator.remove();
@@ -40,7 +40,7 @@ public class Registrant {
     }
 
     public void register(final Container container) {
-        if (!Container.chargeableIC2(container.getTileEntity())) {
+        if (!container.getChargeable().chargeableIC2()) {
             return;
         }
         long chunkIndex = getChunkID(container.getChunkX(), container.getChunkZ());
