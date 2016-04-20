@@ -3,13 +3,13 @@
   "modid": "stabilizermod",
   "name": "stabilizermod",
   "description": "IC2 BuildCraft energy converter",
-  "version": "${version}",
-  "mcversion": "${mcversion}",
+  "version": "",
+  "mcversion": "",
   "url": "",
   "updateUrl": "",
   "authorList": ["Ternsip"],
   "credits": "Ternsip",
-  "logoFile": "",
+  "logoFile": "logo.png",
   "screenshots": [],
   "dependencies": []
 }

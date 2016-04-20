@@ -23,7 +23,7 @@ public class Stabilizermod {
 
     public static final String MODID = "stabilizermod";
     public static final String MODNAME = "StabilizerMod";
-    public static final String VERSION = "3.1";
+    public static final String VERSION = "3.3";
     public static final String AUTHOR = "Ternsip";
     public static final String MCVERSION = "1.7.*";
 

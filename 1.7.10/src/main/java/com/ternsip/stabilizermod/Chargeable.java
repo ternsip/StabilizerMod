@@ -1,44 +1,102 @@
 package com.ternsip.stabilizermod;
 
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Type;
 
 /**
  * Created by TrnMain on 13.04.2016.
  */
 public class Chargeable {
 
-    private TileEntity tile = null;
+    private enum Style{
+
+        ERR,
+        INT,
+        DBL;
+
+        public static Style valueOf(Type type) {
+            if (type == double.class) return DBL;
+            if (type == int.class) return Style.INT;
+            return Style.ERR;
+        }
+
+    }
+
+    private Object target = null;
     private Field field = null;
+    private Style style = Style.ERR;
+    private boolean ic2 = false;
+    private Method addEnergy = null;
 
     public Chargeable(World world, int x, int y, int z) {
-        this.tile = world.getTileEntity(x, y, z);
+        TileEntity tile = world.getTileEntity(x, y, z);
         if (tile != null) {
-            try {this.field = this.tile.getClass().getField("energy");} catch (NoSuchFieldException ignored) {}
-            try {this.field = this.tile.getClass().getField("Energy");} catch (NoSuchFieldException ignored) {}
+            ic2 = tile.getClass().getName().toLowerCase().contains("ic2");
+            if (ic2) {
+                Class superClass = tile.getClass();
+                while (superClass != null) {
+                    try {
+                        addEnergy = tile.getClass().getMethod("addEnergy", int.class);
+                    } catch (NoSuchMethodException ignored) {}
+                    try {
+                        Field energyField = superClass.getDeclaredField("energy");
+                        energyField.setAccessible(true);
+                        detectEnergy(energyField.get(tile), "storage");
+                    } catch (IllegalAccessException ignored) {} catch (NoSuchFieldException ignored) {}
+                    superClass = superClass.getSuperclass();
+                }
+            }
+            detectEnergy(tile, "energy");
+            detectEnergy(tile, "Energy");
         }
     }
 
+    private boolean detectEnergy(Object target, String name) {
+        if (this.field != null) {
+            return true;
+        }
+        Field field = null;
+        try {field = target.getClass().getField(name);} catch (NoSuchFieldException ignored) {}
+        try {field = target.getClass().getDeclaredField(name);} catch (NoSuchFieldException ignored) {}
+        if (field != null) {
+            field.setAccessible(true);
+            Style style = Style.valueOf(field.getType());
+            if (style == Style.ERR) {
+                return false;
+            }
+            this.target = target;
+            this.field = field;
+            this.style = style;
+            return true;
+        }
+        return false;
+    }
+
     public boolean chargeable() {
-        return this.field != null;
+        return field != null;
     }
 
     public boolean chargeableIC2() {
-        return chargeable() && tile.getClass().getName().toLowerCase().contains("ic2");
+        return chargeable() && ic2;
     }
 
     public double getEnergy() {
-        try {return this.field.getDouble(tile);} catch (IllegalAccessException ignored) {}
-        try {return this.field.getInt(tile);} catch (IllegalAccessException ignored) {}
+        try {
+            return style == Style.DBL ? field.getDouble(target) : field.getInt(target);
+        } catch (IllegalAccessException ignored) {}
         return 0;
     }
 
     public void setEnergy(double energy) {
-        try {this.field.setDouble(this.tile, energy); return;} catch (IllegalAccessException ignored) {} catch (IllegalArgumentException ignored) {}
-        try {this.field.setInt(this.tile, (int) energy); return;} catch (IllegalAccessException ignored) {} catch (IllegalArgumentException ignored) {}
+        try {
+            if (style == Style.DBL) field.setDouble(target, energy); else field.setInt(target, (int) energy);
+            if (addEnergy != null) { addEnergy.invoke(target, 0); }
+        } catch (IllegalAccessException ignored) {} catch (InvocationTargetException ignored) {}
     }
 
 
