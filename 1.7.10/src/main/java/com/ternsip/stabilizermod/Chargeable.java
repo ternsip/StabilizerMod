@@ -32,6 +32,7 @@ public class Chargeable {
     private Style style = Style.ERR;
     private boolean ic2 = false;
     private Method addEnergy = null;
+    private Object addEnergyTarget = null;
 
     public Chargeable(World world, int x, int y, int z) {
         TileEntity tile = world.getTileEntity(x, y, z);
@@ -41,7 +42,9 @@ public class Chargeable {
                 Class superClass = tile.getClass();
                 while (superClass != null) {
                     try {
-                        addEnergy = tile.getClass().getMethod("addEnergy", int.class);
+                        addEnergy = superClass.getMethod("addEnergy", int.class);
+                        addEnergy.setAccessible(true);
+                        addEnergyTarget = tile;
                     } catch (NoSuchMethodException ignored) {}
                     try {
                         Field energyField = superClass.getDeclaredField("energy");
@@ -59,6 +62,9 @@ public class Chargeable {
     private boolean detectEnergy(Object target, String name) {
         if (this.field != null) {
             return true;
+        }
+        if (target == null) {
+            return false;
         }
         Field field = null;
         try {field = target.getClass().getField(name);} catch (NoSuchFieldException ignored) {}
@@ -95,7 +101,7 @@ public class Chargeable {
     public void setEnergy(double energy) {
         try {
             if (style == Style.DBL) field.setDouble(target, energy); else field.setInt(target, (int) energy);
-            if (addEnergy != null) { addEnergy.invoke(target, 0); }
+            if (addEnergy != null) { addEnergy.invoke(addEnergyTarget, 0); }
         } catch (IllegalAccessException ignored) {} catch (InvocationTargetException ignored) {}
     }
 

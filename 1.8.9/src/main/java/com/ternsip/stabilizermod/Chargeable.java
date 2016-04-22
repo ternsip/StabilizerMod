@@ -1,6 +1,5 @@
 package com.ternsip.stabilizermod;
 
-import akka.japi.pf.FI;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.BlockPos;
 import net.minecraft.world.World;
@@ -17,15 +16,9 @@ public class Chargeable {
 
     private enum Style{
 
-        ERR (0),
-        INT (1),
-        DBL (2);
-
-        private final int value;
-
-        Style(int value) {
-            this.value = value;
-        }
+        ERR,
+        INT,
+        DBL;
 
         public static Style valueOf(Type type) {
             if (type == double.class) return DBL;
@@ -39,27 +32,41 @@ public class Chargeable {
     private Field field = null;
     private Style style = Style.ERR;
     private boolean ic2 = false;
+    private Method addEnergy = null;
+    private Object addEnergyTarget = null;
 
     public Chargeable(World world, int x, int y, int z) {
         TileEntity tile = world.getTileEntity(new BlockPos(x, y, z));
         if (tile != null) {
-            this.ic2 = tile.getClass().getName().toLowerCase().contains("ic2");
-            if (detectEnergy(tile, "energy")) {return;}
-            if (detectEnergy(tile, "Energy")) {return;}
-            Class superClass = tile.getClass();
-            while (superClass != null) {
-                try {
-                    Field energyField = superClass.getDeclaredField("energy");
-                    energyField.setAccessible(true);
-                    detectEnergy(energyField.get(tile), "storage");
-                    return;
-                } catch (IllegalAccessException ignored) {} catch (NoSuchFieldException ignored) {}
-                superClass = superClass.getSuperclass();
+            ic2 = tile.getClass().getName().toLowerCase().contains("ic2");
+            if (ic2) {
+                Class superClass = tile.getClass();
+                while (superClass != null) {
+                    try {
+                        addEnergy = superClass.getMethod("addEnergy", int.class);
+                        addEnergy.setAccessible(true);
+                        addEnergyTarget = tile;
+                    } catch (NoSuchMethodException ignored) {}
+                    try {
+                        Field energyField = superClass.getDeclaredField("energy");
+                        energyField.setAccessible(true);
+                        detectEnergy(energyField.get(tile), "storage");
+                    } catch (IllegalAccessException ignored) {} catch (NoSuchFieldException ignored) {}
+                    superClass = superClass.getSuperclass();
+                }
             }
+            detectEnergy(tile, "energy");
+            detectEnergy(tile, "Energy");
         }
     }
 
     private boolean detectEnergy(Object target, String name) {
+        if (this.field != null) {
+            return true;
+        }
+        if (target == null) {
+            return false;
+        }
         Field field = null;
         try {field = target.getClass().getField(name);} catch (NoSuchFieldException ignored) {}
         try {field = target.getClass().getDeclaredField(name);} catch (NoSuchFieldException ignored) {}
@@ -95,7 +102,8 @@ public class Chargeable {
     public void setEnergy(double energy) {
         try {
             if (style == Style.DBL) field.setDouble(target, energy); else field.setInt(target, (int) energy);
-        } catch (IllegalAccessException ignored) {}
+            if (addEnergy != null) { addEnergy.invoke(addEnergyTarget, 0); }
+        } catch (IllegalAccessException ignored) {} catch (InvocationTargetException ignored) {}
     }
 
 
